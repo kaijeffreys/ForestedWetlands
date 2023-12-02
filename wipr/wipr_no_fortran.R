@@ -121,7 +121,7 @@ wipr <- function(DEM, len, poly_inputs = list(),
   if(length(poly_inputs) > 0) {
     for(i in 1:length(poly_inputs)) {
       vr_name <- names(poly_inputs)[i]
-      rast <- terra::rasterize(vr_name, DEM, field = vr_name)
+      temp_rast <- terra::rasterize(vr_name, DEM, field = vr_name)
       in_rast <- c(in_rast, temp_rast)
     }
   }
@@ -156,7 +156,7 @@ wipr <- function(DEM, len, poly_inputs = list(),
   # Return the wetlands probability raster as the output
   if(export_prob) {
     if(!is.na(prob_rast_name)) {
-      terra::writeRaster(wet_prob, filename = pasteo0(prob_rast_name), ".tif")
+      terra::writeRaster(wet_prob, filename = paste0(prob_rast_name), ".tif")
     } else {
       terra::writeRaster(wet_prob, filename = "wetProb.tif")
     }

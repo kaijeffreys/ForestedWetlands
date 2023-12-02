@@ -126,7 +126,7 @@ surface_met1 <- function(len, metrics = c("grad", "plan", "prof", "dev"),
 # }
 
 # Build forest model
-build_forest <- function(ref_raster_file, input_raster_files,
+build_and_run_model <- function(ref_raster_file, input_raster_files,
                          input_poly_files, train_data) {
   # Load in reference raster
   ref_raster <- rast(ref_raster_file)
@@ -141,28 +141,30 @@ build_forest <- function(ref_raster_file, input_raster_files,
     raster_list <- c(raster_list, rast(file))
   }
   
-  # raster_list <- terra::align(ref_raster, raster_list)
+  for(i in 1:length(raster_list)) {
+    ext(raster_list[i][[1]]) <- ext(ref_raster)
+  }
   
-  # Check to see if poly files exist, load them in, and then 
-  # poly_list <- list()
-  # lapply(input_poly_files, function(file) {
-  #   if(!file.exists(file)) {
-  #     stop(paste0("Could not find polygon file:", file))
-  #   }
-  #   poly_list[[length(poly_list) + 1]] <- vect(file)
-  # })
-  # 
-  # poly_raster <- list()
-  # 
-  # for(pol in poly_list) {
-  #   pol <- project(pol, ref_raster)
-  #   
-  #   for(i in 1:length(names(pol))) {
-  #     poly_raster[[i]] <- rasterize(pol, ref_raster, field = names(pol)[i])
-  #   }
-  # }
-  # 
-  # raster_list <- c(raster_list, poly_raster)
+  # Check to see if poly files exist, load them in, and then
+  poly_list <- list()
+  lapply(input_poly_files, function(file) {
+    if(!file.exists(file)) {
+      stop(paste0("Could not find polygon file:", file))
+    }
+    poly_list[[length(poly_list) + 1]] <- vect(file)
+  })
+
+  poly_raster <- list()
+
+  for(pol in poly_list) {
+    pol <- project(pol, ref_raster)
+
+    for(i in 1:length(names(pol))) {
+      poly_raster[[i]] <- rasterize(pol, ref_raster, field = names(pol)[i])
+    }
+  }
+
+  raster_list <- c(raster_list, poly_raster)
   
   train_df <- data.frame(class = factor(train_data$Class))
   for(i in 1:length(raster_list)) {
@@ -172,6 +174,19 @@ build_forest <- function(ref_raster_file, input_raster_files,
   train_df <- na.omit(train_df)
   
   # Build model
-  model <- randomForest::randomForest(class ~ ., data = train_df, ntree = 200)
-  return(model)
+  mod <- randomForest::randomForest(class ~ ., data = train_df, ntree = 200)
+
+  input_raster <- raster_list[[1]]
+  if(length(raster_list) > 1) {
+    for(i in 2:length(raster_list)) {
+      input_raster <- c(input_raster, raster_list[[i]])
+    }
+  }
+  names(input_raster) <- colnames(train_df)[-1]
+
+  # Run the model
+  prob_rast <- terra::predict(input_raster, mod, na.rm = T, type = "prob")
+  wet_prob <- prob_rast["WET"]
+  return(wet_prob)
 }
+
