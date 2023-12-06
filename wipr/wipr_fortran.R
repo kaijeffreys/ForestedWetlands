@@ -147,12 +147,13 @@ build_and_run_model <- function(ref_raster_file, input_raster_files,
   
   # Check to see if poly files exist, load them in, and then
   poly_list <- list()
-  lapply(input_poly_files, function(file) {
-    if(!file.exists(file)) {
-      stop(paste0("Could not find polygon file:", file))
+  for(i in 1:length(input_poly_files)) {
+    if(!file.exists(input_poly_files[i])) {
+      stop(paste0("Could not find polygon file:", input_poly_files[i]))
     }
-    poly_list[[length(poly_list) + 1]] <- vect(file)
-  })
+    new_poly <- vect(input_poly_files[i])
+    poly_list <- c(poly_list, new_poly)
+  }
 
   poly_raster <- list()
 
